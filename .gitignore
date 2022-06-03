@@ -1,0 +1,7 @@
+*.jld
+*.jld2
+*.g6
+*.dat-s
+data/
+*.rar
+.vscode
