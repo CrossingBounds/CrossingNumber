@@ -1,4 +1,4 @@
-# Bounds for the crossing number of $K_{n,m}$
+# Bounds for the crossing number of the complete bipartite graph
 
 Computes the bounds $\alpha_m$ and $\beta_m$ for the crossing number of $K_{n,m}$ described in the paper
 
