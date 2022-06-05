@@ -22,9 +22,9 @@ function solveAlpha(m)
     constraints = [c[2] >= 0 for c in cD]
     P = maximize(t, constraints...; numeric_type=BigFloat)
 
-    params = SDPAFamily.Params{:sdpa_dd,BigFloat}(
+    params = SDPAFamily.Params{:sdpa_gmp,BigFloat}(
         maxIteration=200,
-        epsilonStar=1e-14,
+        epsilonStar=1e-40,
         lambdaStar=1e5,
         omegaStar=2,
         lowerBound=-1e5,
@@ -32,7 +32,8 @@ function solveAlpha(m)
         betaStar=0.1,
         betaBar=0.2,
         gammaStar=0.9,
-        epsilonDash=1e-14,
+        epsilonDash=1e-40,
+        precision=512,
     )
 
     @time solve!(P, () -> SDPAFamily.Optimizer(presolve=false, params=params, verbose=SDPAFamily.VERBOSE))
@@ -42,7 +43,7 @@ function solveAlpha(m)
 
  
 
-    @show 8 * optVal / (m * (m - 1))
+    @show 8 * P.optval / (m * (m - 1))
 
-    return optVal
+    return P.optval
 end

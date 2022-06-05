@@ -8,14 +8,17 @@ include("CRRepresentativeSet.jl")
 include("EquivalenceCR.jl")
 include("Cmatrixsigmatau.jl")
 include("BlockDiagonalize.jl")
+include("DecomposeModuleBasicLinearAlgebra.jl")
 #this is a test-comment to see if I can commit to GIT
 
+#WRITES .DAT-S FILE FOR COMPUTING ALPHA_m USING FULL SYMMETRY reduction
+#We computed Alpha_10 with this .DAT-S file
 
-#WRITE SEPARATE BLOCKS FOR ALPHA_M, CROSSING NUMBER PROBLEM. WE USE THE SYMMETRY GROUP S_{M-1} ACTING ON 
-#Sigma_2,...,Sigma_{M} WHERE SIGMA IS AN M-CYCLE (seen as a row vector of length M)
-#Where we assume that Sigma_1=1, i.e., {Sigma_2,...,Sigma_{M}} = {2,...,M}
+# to compute the representative set:
+# WITH decomposeModule(m): use Reynolds Operator method from Daniels thesis to find tableaux (fast)
+# WITH decomposeModuleBasicLinearAlgebra(m): project elements in the representative set for M^(1^m) onto Z_m, and find a minimum spanning set, to find a representative set for S_m acting on \C^{Z_m}. Subsequently handle the S_2-action.
 
-function CrossingBlockDiagFULL(m)
+function CrossingBlockDiagFULL(m, decomposeBasicLinearAlgebra=false)
     println("#### We consider alpha_m with m = ", m)
     println("### Using FULL reduction...")
     println("### Generating orbit numbers...")
@@ -44,8 +47,13 @@ function CrossingBlockDiagFULL(m)
     println("##### Generating Blocks...")
    # @time MapLambdaToBlocksElement =load(string("data/CrossingM",m,"FullSymBasis.jld2"))["basis"]
     
-    @time MapLambdaToBlocksElement = decomposeModule(m)
-    #display(MapLambdaToBlocksElement)
+    MapLambdaToBlocksElement=[]
+    if decomposeBasicLinearAlgebra == false 
+        @time MapLambdaToBlocksElement = decomposeModule(m) 
+    else 
+        @time MapLambdaToBlocksElement = decomposeModuleBasicLinearAlgebra(m)
+    end
+    display(MapLambdaToBlocksElement)
     #blockSizes = [factorial(m-1)]
 
     #println("block sizes: ",blockSizes)
