@@ -3,7 +3,7 @@
 Computes the bounds $\alpha_m$ and $\beta_m$ for the crossing number of $K_{n,m}$ described in the paper
 
 > *New lower bounds on crossing numbers of Km,n from
-permutation modules and semidefinite programming*, Daniel Brosch and Sven Polak, ArXiv:?????, 2022.
+permutation modules and semidefinite programming*, Daniel Brosch and Sven Polak, [ArXiv:2206.02755](https://arxiv.org/abs/2206.02755), 2022.
 
 To compute the bounds: 
 - [SolveSDP_Alpha.jl](src/SolveSDP_Alpha.jl) contains a function `solveAlpha(m)` which computes $\alpha_m$.
