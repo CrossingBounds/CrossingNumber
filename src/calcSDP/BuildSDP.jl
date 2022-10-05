@@ -141,6 +141,7 @@ function buildDualSDP_GMP(sdpData, blocks = collect(keys(sdpData.coeff)))
                 Y[mu] = Variable(1, Positive())
             else
                 Y[mu] = Semidefinite(n)
+                # Y[mu] = Variable(n,n)
             end
         end
     end

@@ -1,7 +1,9 @@
-*.jld
-*.jld2
 *.g6
 *.dat-s
 data/
 *.rar
 .vscode
+*.png
+front.jld2
+back*.jld2
+*.xcf
