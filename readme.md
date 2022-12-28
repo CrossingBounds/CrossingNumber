@@ -9,3 +9,15 @@ To compute the bounds:
 - [SolveSDP_Alpha.jl](src/SolveSDP_Alpha.jl) contains a function `solveAlpha(m)` which computes $\alpha_m$.
 - [SolveSDP_Beta_Iterative.jl](src/SolveSDP_Beta_Iterative.jl) contains a function `solveBetaIterative(m)` which computes $\beta_m$.
 - [VisualizeSolutions.jl](src/VisualizeSolutions.jl) computes $\beta_m$ for $m\in\{5,7,9,11,13\}$ and plots the coefficients of the eigenvector of the rank 1 solutions.
+
+## Quick test of solveAlpha
+
+Assume Julia installed; run `julia` in terminal,
+in the main package directory (with `readme.md`).
+- hit `]` to get `pkg>` prompt
+- type `activate .` (and hit return)
+- type `initialize`
+- hit backspace to get back to `julia>` prompt
+- type `include("src/SolveSDP_Alpha.jl")`
+- type `solveAlpha(5)`; after a little while, it will give `1.947213595...` as the answer.
+- etc... (e.g., type `solveAlpha(7)` to get `4.359315494807...`)
