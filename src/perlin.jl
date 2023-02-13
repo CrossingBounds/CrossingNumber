@@ -1,6 +1,6 @@
+# shamelessly stolen from https://github.com/ararslan/ProceduralNoise.jl/blob/master/src/perlin.jl
 # Based on https://gist.github.com/Flafla2/f0260a861be0ebdeef76
 
-#https://github.com/ararslan/ProceduralNoise.jl/blob/master/src/perlin.jl
 
 # Hash lookup table as defined by Ken Perlin
 const PERMS1 = [151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7,

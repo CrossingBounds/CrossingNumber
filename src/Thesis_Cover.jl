@@ -3,7 +3,8 @@ include("calcSDP/BuildSDP.jl")
 
 m=8
 
-using SDPAFamily, LinearAlgebra#,JLD2
+using LinearAlgebra, MosekTools
+# using SDPAFamily, LinearAlgebra#,JLD2
 
 mu = (Partition([m - 2, 1, 1]), -1)
 dualBlocksRestricted = [mu]
@@ -41,30 +42,30 @@ setprecision(256)
     @info("Iteration $(it)")
     it += 1
 
-    P = maximize(t, constraints...; numeric_type=BigFloat)
+    # P = maximize(t, constraints...; numeric_type=BigFloat)
     # P = maximize(0, constraints...; numeric_type=BigFloat)
     # P = maximize(t, constraints...; numeric_type=Float64) 
-    # P = maximize(0, constraints...; numeric_type=Float64)
+    P = maximize(0, constraints...; numeric_type=Float64)
 
-    params = SDPAFamily.Params{:sdpa_gmp,BigFloat}(
-        maxIteration=200,
-        epsilonStar=1e-40,
-        lambdaStar=1e5,
-        omegaStar=2,
-        lowerBound=-1e5,
-        upperBound=1e5,
-        betaStar=0.1,
-        betaBar=0.2,
-        gammaStar=0.9,
-        epsilonDash=1e-40,
-        precision=512,
-    )
+    # params = SDPAFamily.Params{:sdpa_gmp,BigFloat}(
+    #     maxIteration=200,
+    #     epsilonStar=1e-40,
+    #     lambdaStar=1e5,
+    #     omegaStar=2,
+    #     lowerBound=-1e5,
+    #     upperBound=1e5,
+    #     betaStar=0.1,
+    #     betaBar=0.2,
+    #     gammaStar=0.9,
+    #     epsilonDash=1e-40,
+    #     precision=512,
+    # )
 
     @info "starting solver"
 
-    @time solve!(P, () -> SDPAFamily.Optimizer(presolve=true, params=params),silent_solver=false)
+    # @time solve!(P, () -> SDPAFamily.Optimizer(presolve=true, params=params),silent_solver=false)
     # @time solve!(P, () -> SDPAFamily.Optimizer(presolve=true, params=SDPAFamily.UNSTABLE_BUT_FAST),silent_solver=false)
-    # @time solve!(P, () -> Mosek.Optimizer())
+    @time solve!(P, () -> Mosek.Optimizer())
 
     @show P.optval
     @show P.status
@@ -108,8 +109,13 @@ end
 
 @show 8 * optVal / (m * (m - 1))
 
-opt = Symmetric(Convex.evaluate(yD[mu]))
-# cent = Symmetric(Convex.evaluate(yD[mu]))
+# opt = Symmetric(Convex.evaluate(yD[mu]))
+cent = Symmetric(Convex.evaluate(yD[mu]))
+##
+
+d = load("preciseSolution.jld2")
+opt = d["opt"]
+cent = d["cent"]
 
 ##
 
@@ -636,11 +642,17 @@ p = heatmap(MNoise, xaxis=:none, legend=:none, border=:none, margin=Plots.Measur
 save("front.png",p)
 
 ## Animated back cover 
+include("perlin.jl")
+##
+
+#TODO: Need high precision center, opt
 
 picNo = 8
-using ColorSchemes
+using ColorSchemes, Plots, LinearAlgebra
 
-res = 50
+res = 200
+yRes = -1:(1/res):1
+xRes = -(9/16):(1/res):(9/16)
 
 data1 = load("pic8.jld2")
 data2 = load("pic42.jld2")
@@ -694,10 +706,10 @@ end
 
 function compImage(yc, xD, yD, r)
 
-    P = zeros(Float64, 2*res+1, 2*res+1)
+    P = zeros(Float64, length(xRes), length(yRes))
 
-    @showprogress for (i, x) in enumerate(-1:(1/r):1)
-        for (j, y) in enumerate(-1:(1/r):1)
+    @showprogress for (i, x) in enumerate(xRes)
+        for (j, y) in enumerate(yRes)
             P[i,j] = distanceTillFeasible(yc + x*xD + y*yD)
         end
     end
@@ -706,8 +718,14 @@ function compImage(yc, xD, yD, r)
     return P
 end
 
-@gif for sigma = 0:(2*pi/100):2*pi
+frame = 1
 
+@gif for sigma = 0:(2*pi/200):2*pi
+    # if Int(round(10000*sigma/(2*pi))) % 100 == 0
+    if isfile("./animFrames/res$(res)frame$(Int(round(10000*sigma/(2*pi)))).png")
+        continue
+    end
+    
     @show sigma/(2*pi)
 
     # @time picture = compImage(ycent,
@@ -741,11 +759,11 @@ end
 
     # save("pic$(counter).png", p)
 
-    surfaceDir = [[0.0,0.0,0.0] for i = 1:size(picture,1)-1,j=1:size(picture,1)-1]
+    surfaceDir = [[0.0,0.0,0.0] for i = 1:size(picture,1)-1,j=1:size(picture,2)-1]
 
-    for (ix, x) in enumerate(-1:(1/res):1)
-        for (iy, y) in enumerate(-1:(1/res):1)
-            if ix < size(picture,1) && iy < size(picture,1)
+    for (ix, x) in enumerate(xRes)
+        for (iy, y) in enumerate(yRes)
+            if ix < size(picture,1) && iy < size(picture,2)
                 a = [x,y,picture[ix,iy]]
                 b = [x+1/res,y,picture[ix+1,iy]]
                 c = [x,y+1/res,picture[ix,iy+1]]
@@ -761,8 +779,50 @@ end
     pictureNoise = [perlin((1 .*s .+ 11)...) for s in surfaceDir]
     # p = heatmap(pictureNoise, xaxis=:none, legend=:none, border=:none, margin=Plots.Measures.pt * -100, size=(2*res*20,2*res*20), showaxis=false, widen=false, color=:sun)
     # save("back$(picNo).jld2", "yCenter", ycent, "xDir", xDir, "yDir", yDir, "picture", picture, "pictureNoise", pictureNoise)
-    p = heatmap(pictureNoise, xaxis=:none, legend=:none, border=:none, margin=Plots.Measures.pt * -100, size=(2*res*20,2*res*20), showaxis=false, widen=false, color=colorschemes[:YlOrBr][2:end-2])
+    p = heatmap(pictureNoise, xaxis=:none, legend=:none, border=:none, margin=Plots.Measures.pt * -100, size=(length(yRes),length(xRes)), showaxis=false, widen=false, color=colorschemes[:YlOrBr][2:end-2])
 
     display(p)
+    save("./animFrames/res$(res)frame$(Int(round(10000*sigma/(2*pi)))).png", p)
+    save("./animFrames/res$(res)frame$(Int(round(10000*sigma/(2*pi))))_data.jld2", "picture", picture, "pictureNoise", pictureNoise)
+    # frame += 1
 
 end
+
+##
+
+using FileIO, ImageShow
+
+for (e,i) in enumerate(0:50:9950)
+    # img = load("animFrames/res100frame$i.png")
+
+    # cp("animFrames/res100frame$i.png", "animFrames/video/res100frame$e.png")
+    img = load("animFrames/res$(res)frame$i.png")
+    # save("animFrames/video/res100frame$e.png",img[1:end-1,1:end-1])
+    save("animFrames/video/res$(res)frame$e.png",img[1:end-1,1:end-1])
+    # run(`mogrify -blur 0.1 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -adaptive-sharpen 4 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -adaptive-sharpen 10 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -bilateral-blur 10 animFrames/video/res100frame$e.png`)
+    run(`mogrify -kuwahara 1 animFrames/video/res$(res)frame$e.png`)
+    # run(`mogrify -kuwahara 1 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -kuwahara 1 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -kuwahara 1 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -adaptive-sharpen 2 animFrames/video/res100frame$e.png`)
+    run(`mogrify -blur 1x2 animFrames/video/res$(res)frame$e.png`)
+    # run(`mogrify -filter Gaussian -resize 400% animFrames/video/res100frame$e.png`)
+    run(`mogrify -filter Mitchell -adaptive-resize 400% animFrames/video/res$(res)frame$e.png`)
+    # run(`mogrify -unsharp 3 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -unsharp 10 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -unsharp 10 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -kuwahara 1 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -blur 5 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -blur 5 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -blur 5 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -bilateral-blur 5 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -adaptive-sharpen 5 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -adaptive-sharpen 5 animFrames/video/res100frame$e.png`)
+    # run(`mogrify -adaptive-sharpen 5 animFrames/video/res100frame$e.png`)
+end
+
+run(`ffmpeg -framerate 10 -i ./animFrames/video/res$(res)frame%00d.png -y -c:v libx264 -profile:v high -crf 20 -pix_fmt yuv420p output.mp4`)
+
