@@ -1,7 +1,18 @@
 include("calcSDP/BuildSDP.jl")
 
 
-using SDPAFamily, LinearAlgebra#,JLD2
+using SDPAFamily, LinearAlgebra, GenericLinearAlgebra
+
+function roundRationalPSD(A)
+    if size(A,1) == 1
+        return max(Rational(A), Rational{BigInt}(0//1))
+    end
+    eg = eigen(Hermitian(A))
+    egVals = Rational.(eg.values)
+    egVecs = Rational.(eg.vectors)
+    posInds = egVals .> 0 
+    return egVecs[:, posInds] * diagm(egVals[posInds]) * egVecs[:, posInds]'
+end
 
 """
     solveBetaIterative(m)
@@ -17,7 +28,13 @@ function solveBetaIterative(m)
 
     # sdpData = load("data/sdpDataBeta$m.jld2")["sdpData"]
 
+    # for beta
     @time sdpData = calcSDP(m, dualBlocksRestricted);
+    
+    # for alpha
+    # @time sdpData = calcSDP(m)#, dualBlocksRestricted);
+    # dualBlocksRestricted = collect(keys(sdpData.coeff))
+
     # save("data/sdpDataBeta$m.jld2", "sdpData", sdpData)
 
     @time (t, yD, cD) = buildDualSDP_GMP(sdpData, dualBlocksRestricted);
@@ -105,6 +122,29 @@ function solveBetaIterative(m)
     end
 
     @show 8 * optVal / (m * (m - 1))
+
+    # rounding to a rational feasible solution
+    # guaranteed PSD
+    ySol = Dict(mu=>roundRationalPSD(Convex.evaluate(y)) for (mu, y) in yD)
+
+    # potentially slightly too big
+    tSol = Rational(Convex.evaluate(t))
+
+    # checking constraints 
+    @show tSol
+    for v in sdpData.vars
+        vVec = [i for i in v]
+        A = -sum(dot(Symmetric(sdpData.coeff[mu2][vVec]), ySol[mu2]) for mu2 in dualBlocksRestricted if haskey(sdpData.coeff[mu2],vVec); init = BigInt(0)//BigInt(1)) + sdpData.obj[v]
+        B = sdpData.orbitSizes[v]
+        # we need: A >= tSol*B
+        # <=> tSol <= A/B
+        # @show tSol <= A//B
+        tSol = min(tSol, A//B)   
+    end
+    @show tSol, Convex.evaluate(t)
+    @show BigFloat(tSol) - Convex.evaluate(t)
+
+
 
     return optVal, Symmetric(Convex.evaluate(yD[mu])), addedConstraintsDict
 end

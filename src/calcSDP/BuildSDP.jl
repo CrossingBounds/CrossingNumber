@@ -146,7 +146,7 @@ function buildDualSDP_GMP(sdpData, blocks = collect(keys(sdpData.coeff)))
     end
     
     for v in sdpData.vars
-        constrTerm = -sum(Iterators.flatten((0,dot(Symmetric(sdpData.coeff[mu][[i for i in v]]), Y[mu]) for mu in keys(sdpData.coeff) if mu in blocks && haskey(sdpData.coeff[mu],[i for i in v])))) - t*sdpData.orbitSizes[v] + sdpData.obj[v]
+        constrTerm = -sum(dot(Symmetric(sdpData.coeff[mu][[i for i in v]]), Y[mu]) for mu in keys(sdpData.coeff) if mu in blocks && haskey(sdpData.coeff[mu],[i for i in v]);init=0) - t*sdpData.orbitSizes[v] + sdpData.obj[v]
 
         push!(constraints, (v,constrTerm, sdpData.obj[v]))
     end
