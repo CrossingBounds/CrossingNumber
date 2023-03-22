@@ -157,6 +157,77 @@ function buildDualSDP_GMP(sdpData, blocks = collect(keys(sdpData.coeff)))
 
 end
 
+function buildPrimalSDP_GMP(sdpData)
+    # m = Model()
+
+    # y = Dict(Variable(1, Positive()) for c in sdpData.vars)
+    # y = Variable(length(sdpData.vars), Positive())
+
+    n = length(sdpData.vars)
+
+    y = Any[Variable(1) for i = 1:n-1]
+    # y = Any[Variable(1) for i = 1:n]
+    # y = Variable(n)
+
+    # y = Any[Variable(1, Positive()) for i = 1:n-1]
+    finalOrbitSize = BigInt(sdpData.orbitSizes[sdpData.vars[end]])
+    push!(y, 1/finalOrbitSize - sum(y[i]*sdpData.orbitSizes[v] for (i,v) in enumerate(sdpData.vars[1:n-1]))/finalOrbitSize)
+
+    constraints = []
+
+    for i = 1:n
+        push!(constraints, y[i] >= 0)
+    end
+
+    # sum c_i y_i = 1
+    # y_n = 1/c_n - sum c_i/c_n y_i
+
+    # push!(constraints, sum(y[i]*sdpData.orbitSizes[v] for (i,v) in enumerate(sdpData.vars)) == 1)
+
+    for (mu, b) in sdpData.coeff
+        if mu != (AbstractAlgebra.Partition([length(sdpData.vars[1])]),1) # block is all zeros if the (weighted) sum of variables is 1
+            m = size(rand(b)[2],1)
+
+            # println()
+            @show mu 
+            reducedB = deepcopy(b)
+            for (v, bl) in reducedB
+                @show v
+                if haskey(b, [i for i in sdpData.vars[end]])
+                    # @show sdpData.orbitSizes[Tuple(v)]
+                    @show bl - 1/finalOrbitSize *sdpData.orbitSizes[Tuple(v)]*b[[i for i in sdpData.vars[end]]]
+                else 
+                    @show bl
+                end
+            end
+
+            # blk = Symmetric([ k<=l ? [haskey(b,[i for i in v]) ? b[[i for i in v]][k,l] : 0 for v in sdpData.vars]' * y : 0*y[1] for k = 1:n, l = 1:n ])
+            # blk = Symmetric([ k<=l ? [haskey(b,[i for i in v]) ? b[[i for i in v]][k,l] : 0 for v in sdpData.vars]' * y : 0*y[1] for k = 1:n, l = 1:n ])
+            blk = sum(Symmetric(b[[i for i in v]]) * y[i] for (i,v) in enumerate(sdpData.vars) if haskey(b, [i for i in v]))
+            # psdBlocks = sum(blkD.blks[i] .* x[i] for i = 1:P.n)
+            # N = size(blkD.blks[1],1)
+            # psdBlocks = Symmetric([ k<=l ? [blkD.blks[i][k,l] for i in 1:P.n]' * x : GenericAffExpr{Float64, VariableRef}() for k = 1:N, l = 1:N ])
+
+            if m == 1
+                # @show mu 
+                # @show m 
+                # @show b 
+                push!(constraints, blk >= 0)
+            else
+                push!(constraints, blk in :SDP)
+            end
+        end
+    end
+
+    # @objective(m, Min, sum(y[v] * sdpData.obj[v] for v in sdpData.vars))
+
+    P = minimize(sum(y[i] * sdpData.obj[v] for (i,v) in enumerate(sdpData.vars)), constraints...; numeric_type=BigFloat)
+    # P = minimize(dot(y, collect(values(sdpData.obj))), constraints...; numeric_type=BigFloat)
+
+    return (P, y, constraints)
+
+end
+
 # function buildRestrictedDualSDP(sdpData, blocks)
 #     m = Model()
 

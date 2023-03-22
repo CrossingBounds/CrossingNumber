@@ -2,6 +2,7 @@
 *.jld2
 *.g6
 *.dat-s
+*.dat
 data/
 *.rar
 .vscode

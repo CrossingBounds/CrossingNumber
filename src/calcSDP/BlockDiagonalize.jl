@@ -14,7 +14,7 @@ function blockDiagonalize(basis)
         tmpC = zeros(Int, m)
         for i = 1:s
             for j = i:s
-                print("($i, $j)    \n")
+                print("($i, $j)    \r")
                 prod = calcProductNoDictThinMat(bs[i],bs[j])
                 # @show prod
                 invProd = Dict(labelCanonical(Int.(reverse(c)); cAdj = tmpB, best = tmpC) => sgn * coeff for (c,coeff) in prod)
