@@ -37,44 +37,44 @@ function solveAlpha(m; variant = :sdpa_gmp)
     constraints = [c[2] >= 0 for c in cD]
     P = maximize(t, constraints...; numeric_type=BigFloat)
 
-    # if variant == :sdpa_gmp
-    #     params = SDPAFamily.Params{:sdpa_gmp,BigFloat}(
-    #         maxIteration=200,
-    #         epsilonStar=1e-40,
-    #         lambdaStar=1e5,
-    #         omegaStar=2,
-    #         lowerBound=-1e5,
-    #         upperBound=1e5,
-    #         betaStar=0.1,
-    #         betaBar=0.2,
-    #         gammaStar=0.9,
-    #         epsilonDash=1e-40,
-    #         precision=512,
-    #     )
-    #     @time solve!(P, () -> SDPAFamily.Optimizer(presolve=false, params=params, verbose=SDPAFamily.VERBOSE; variant = :sdpa_gmp))
+    if variant == :sdpa_gmp
+        params = SDPAFamily.Params{:sdpa_gmp,BigFloat}(
+            maxIteration=200,
+            epsilonStar=1e-40,
+            lambdaStar=1e5,
+            omegaStar=2,
+            lowerBound=-1e5,
+            upperBound=1e5,
+            betaStar=0.1,
+            betaBar=0.2,
+            gammaStar=0.9,
+            epsilonDash=1e-40,
+            precision=512,
+        )
+        @time solve!(P, () -> SDPAFamily.Optimizer(presolve=false, params=params, verbose=SDPAFamily.VERBOSE; variant = :sdpa_gmp))
 
-    # elseif variant == :sdpa_dd 
+    elseif variant == :sdpa_dd 
 
-    #     params = SDPAFamily.Params{:sdpa_dd,BigFloat}(
-    #         maxIteration =    1000,
-    #         epsilonStar  = 1.000e-17,
-    #         lambdaStar   = 1.000e+03,
-    #         omegaStar    = 2.000e+00,
-    #         lowerBound   = -1.000e+05,
-    #         upperBound   = 1.000e+05,
-    #         betaStar     = 1.000e-01,
-    #         betaBar      = 2.000e-01,
-    #         gammaStar    = 9.000e-01,
-    #         epsilonDash  = 1.000e-17
-    #     )
+        params = SDPAFamily.Params{:sdpa_dd,BigFloat}(
+            maxIteration =    1000,
+            epsilonStar  = 1.000e-17,
+            lambdaStar   = 1.000e+03,
+            omegaStar    = 2.000e+00,
+            lowerBound   = -1.000e+05,
+            upperBound   = 1.000e+05,
+            betaStar     = 1.000e-01,
+            betaBar      = 2.000e-01,
+            gammaStar    = 9.000e-01,
+            epsilonDash  = 1.000e-17
+        )
     
-    #     @time solve!(P, () -> SDPAFamily.Optimizer(presolve=false, params=params, verbose=SDPAFamily.VERBOSE; variant = :sdpa_dd))
-    #     # @time solve!(P, () -> SDPAFamily.Optimizer())
-    # else
-    #     @error "Use sdpa gmp or dd"
-    # end
+        @time solve!(P, () -> SDPAFamily.Optimizer(presolve=false, params=params, verbose=SDPAFamily.VERBOSE; variant = :sdpa_dd))
+        # @time solve!(P, () -> SDPAFamily.Optimizer())
+    else
+        @error "Use sdpa gmp or dd"
+    end
     
-    @time solve!(P, () -> Hypatia.Optimizer{BigFloat}())
+    # @time solve!(P, () -> Hypatia.Optimizer{BigFloat}())
 
 
     @show P.optval
@@ -347,18 +347,21 @@ function writeSDPA(io::IO, m; precision = 256, sdpData = calcSDP(m))
 end
 
 ##
-
+using JLD2
 
 fullPath = SDPAFamily.Optimizer().binary_path
 fullPath = fullPath[1:end-3]
 fullPath *= "dd"
 
-m = 5
+m = 10
 sdpData = calcSDP(m)
 
 open("data$m.dat-s", "w") do io 
     global data = writeSDPA(io, m; sdpData = sdpData)
 end
+
+@save "sdpData$m.jld2" sdpData data
+# @load "sdpData$m.jld2" sdpData data
 
 @info "starting sdpa gmp"
 # m = SDPAFamily.Optimizer()
