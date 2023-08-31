@@ -346,90 +346,101 @@ function writeSDPA(io::IO, m; precision = 256, sdpData = calcSDP(m))
     return vars, blocks, objective, blockData, objShift
 end
 
-##
-using JLD2
+"""
+    solveAlphaExternal(m; variant = "dd" ["gmp"], precision = 512)
 
-fullPath = SDPAFamily.Optimizer().binary_path
-fullPath = fullPath[1:end-3]
-fullPath *= "dd"
+Manually generates a `.sdpa` file and runs `sdpagmp` externally. Afterwards the output is read, and rounded to a rational feasible solution.
+"""
+function solveAlphaExternal(m; variant = "dd", precision = 512)
 
-m = 10
-sdpData = calcSDP(m)
+    fullPath = SDPAFamily.Optimizer().binary_path
+    fullPath = fullPath[1:end-3]
+    # fullPath *= "dd"
+    # fullPath *= "gmp"
+    fullPath *= variant
 
-open("data$m.dat-s", "w") do io 
-    global data = writeSDPA(io, m; sdpData = sdpData)
-end
+    sdpData = calcSDP(m)
 
-@save "sdpData$m.jld2" sdpData data
-# @load "sdpData$m.jld2" sdpData data
-
-@info "starting sdpa gmp"
-# m = SDPAFamily.Optimizer()
-# SDPAFamily.sdpa_gmp_binary_solve!(m, "data.dat-s", "out.dat")
-
-@time run(pipeline(`$fullPath data$m.dat-s out$m.dat -pt 2`, stdout=stdout, stderr=stdout), wait=true)
-
-output = readlines("out$m.dat")
-
-objLine = output[findfirst(startswith("objValDual"), output)]
-obj = parse(BigFloat,split(objLine, "= ")[2]) + data[end]
-
-yMatLines = output[findfirst(startswith("yMat"), output)+2:end-4]
-# yMatText = join(yMatLines)
-
-curLine = 1
-
-setprecision(256)
-
-ySol = Dict()
-for (mu, b) in data[2]
-    if b < 0
-        yMatText = yMatLines[curLine]
-        curLine += 1
-    else
-        yMatText = join(yMatLines[curLine:curLine+b-1])
-        curLine += b 
-    end
-    yMatText = replace(yMatText, "{"=>"", "}"=>"", " "=>"")
-    if yMatText[end] == ','
-        yMatText = yMatText[1:end-1]
+    sdpaData = open("data$m.dat-s", "w") do io 
+        writeSDPA(io, m; sdpData = sdpData, precision = precision)
     end
 
-    # @show yMatText
-    ySplit = split(yMatText, ",")
-    yDat = parse.(BigFloat, ySplit)
-    if b > 0
-        yDat = reshape(yDat, b,b)
+    # @save "sdpData$m.jld2" sdpData data
+    # @load "sdpData$m.jld2" sdpData sdpaData
+
+    # sdpData = load("sdpData$m.jld2")["sdpData"]
+    # sdpaData = load("sdpData$m.jld2")["data"]
+
+    @info "starting sdpa $variant externally"
+    # m = SDPAFamily.Optimizer()
+    # SDPAFamily.sdpa_gmp_binary_solve!(m, "data.dat-s", "out.dat")
+
+    # @time run(pipeline(`$fullPath data$m.dat-s out$m.dat -pt 2`, stdout=stdout, stderr=stdout), wait=true)
+    @time run(pipeline(`$fullPath data$m.dat-s out$m.dat`, stdout=stdout, stderr=stdout), wait=true)
+
+
+    output = readlines("out$(m).dat")
+    # output = readlines("out$(m)Sven3.dat")
+
+    objLine = output[findfirst(startswith("objValDual"), output)]
+    obj = parse(BigFloat,split(objLine, "= ")[2]) + sdpaData[end]
+
+    yMatLines = output[findfirst(startswith("yMat"), output)+2:end-4]
+    # yMatText = join(yMatLines)
+
+    curLine = 1
+
+    setprecision(precision)
+
+    ySol = Dict()
+    for (mu, b) in sdpaData[2]
+        if b < 0
+            yMatText = yMatLines[curLine]
+            curLine += 1
+        else
+            yMatText = join(yMatLines[curLine:curLine+b-1])
+            curLine += b 
+        end
+        yMatText = replace(yMatText, "{"=>"", "}"=>"", " "=>"")
+        if yMatText[end] == ','
+            yMatText = yMatText[1:end-1]
+        end
+
+        # @show yMatText
+        ySplit = split(yMatText, ",")
+        yDat = parse.(BigFloat, ySplit)
+        if b > 0
+            yDat = reshape(yDat, b,b)
+        end
+        ySol[mu] = yDat
+        # @show mu 
+        # display(yDat)
     end
-    ySol[mu] = yDat
-    # @show mu 
-    # display(yDat)
+
+    # rounding to a rational feasible solution
+    # guaranteed PSD
+    ySol = Dict(mu=>roundRationalPSD(y) for (mu, y) in ySol if mu != :vars)
+    ySol[(AbstractAlgebra.Partition([m]),1)] = [0//1;;]
+
+    # potentially slightly too big
+    tSol = Rational(obj)
+
+    # setprecision(512)
+
+    # checking constraints 
+    @show tSol
+    minGap = 1000
+    for v in sdpData.vars
+        vVec = [i for i in v]
+        # -sum(dot(Symmetric(sdpData.coeff[mu][[i for i in v]]), Y[mu]) for mu in keys(sdpData.coeff) if mu in blocks && haskey(sdpData.coeff[mu],[i for i in v]);init=0) - t*sdpData.orbitSizes[v] + sdpData.obj[v] >= 0
+        A = -sum(dot(Symmetric(sdpData.coeff[mu][vVec]), ySol[mu]) for mu in keys(sdpData.coeff) if haskey(sdpData.coeff[mu],vVec); init = BigInt(0)//BigInt(1)) + sdpData.obj[v]
+        B = sdpData.orbitSizes[v]
+        # we need: A >= tSol*B
+        # <=> tSol <= A/B
+        # @show tSol <= A//B
+        minGap = min(minGap, A//B - tSol)
+        tSol = min(tSol, A//B)   
+    end
+    @show BigFloat(tSol) - obj
+    return tSol
 end
-
-# rounding to a rational feasible solution
-# guaranteed PSD
-ySol = Dict(mu=>roundRationalPSD(y) for (mu, y) in ySol if mu != :vars)
-ySol[(AbstractAlgebra.Partition([m]),1)] = [0//1;;]
-
-# potentially slightly too big
-tSol = Rational(obj)
-
-setprecision(512)
-
-# checking constraints 
-@show tSol
-minGap = 1000
-for v in sdpData.vars
-    vVec = [i for i in v]
-    # -sum(dot(Symmetric(sdpData.coeff[mu][[i for i in v]]), Y[mu]) for mu in keys(sdpData.coeff) if mu in blocks && haskey(sdpData.coeff[mu],[i for i in v]);init=0) - t*sdpData.orbitSizes[v] + sdpData.obj[v] >= 0
-    A = -sum(dot(Symmetric(sdpData.coeff[mu][vVec]), ySol[mu]) for mu in keys(sdpData.coeff) if haskey(sdpData.coeff[mu],vVec); init = BigInt(0)//BigInt(1)) + sdpData.obj[v]
-    B = sdpData.orbitSizes[v]
-    # we need: A >= tSol*B
-    # <=> tSol <= A/B
-    # @show tSol <= A//B
-    minGap = min(minGap, A//B - tSol)
-    tSol = min(tSol, A//B)   
-end
-@show tSol, obj
-@show BigFloat(tSol) - obj
-@show BigFloat(minGap)
