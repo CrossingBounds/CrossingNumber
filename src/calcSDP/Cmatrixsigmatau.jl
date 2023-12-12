@@ -307,13 +307,12 @@ end
 # attempt at faster implementation via the paper "Finding minimum-length generator sequences" by Mark R. Jerrum (Theoretical Computer Science 36 (1985))
 # reference was suggested by Frank de Meijer 
 function CsigmatauNew(m)
-
-    @time Vertices = unique(labelCanonical(pushfirst!(vertex, 1)) for vertex in permutations(Array((2:m))))
-
     DistanceDict = Dict()  
     Xvec=zeros(Int,m)
     Ubound = m*m
-    @time for vertex in Vertices
+    
+    #loop over all orbits 
+    for vertex in unique(labelCanonical(pushfirst!(vertex, 1)) for vertex in permutations(Array((2:m)))) 
         minVal = Ubound 
         for shift in 0:(m-1) 
             vertexTemp = circshift(vertex,shift)
@@ -326,9 +325,9 @@ function CsigmatauNew(m)
                 Xvec[j] += m; 
             end
             toCompare = IntersectionNumber(Xvec)
-            toCompare < minVal ? minVal=toCompare : 0;
+            toCompare < minVal ? minVal = toCompare : 0;
         end
-        DistanceDict[vertex]=minVal 
+        DistanceDict[vertex] = minVal 
     end
     return DistanceDict
 end
@@ -339,11 +338,11 @@ function IntersectionNumber(xVector)
     Ival=0;
     for i=1:m, j=i+1:m 
         r=i-j;
-        s=(i+xVector[i])-(j+xVector[j])
+        s=(i+xVector[i]) - (j+xVector[j])
         if r <=s ## number of integers in [r,s] divisible by m
-            Ival+=floor(Int,s/m)-ceil(Int,r/m) +1
+            Ival+= floor(Int,s/m) - ceil(Int,r/m) +1
         else #number of integers in [s,r] divisible by m
-            Ival+= floor(Int,r/m)-ceil(Int,s/m)+1
+            Ival+= floor(Int,r/m) - ceil(Int,s/m)+1
         end
     end
     return Ival; 
