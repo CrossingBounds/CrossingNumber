@@ -307,14 +307,9 @@ end
 # attempt at faster implementation via the paper "Finding minimum-length generator sequences" by Mark R. Jerrum (Theoretical Computer Science 36 (1985))
 # reference was suggested by Frank de Meijer 
 function CsigmatauNew(m)
-    Sigmavec = Array((1:m))
 
     @time begin
-        Vertices = collect(permutations(Array((2:m))))
-        for vertex in Vertices
-            pushfirst!(vertex, 1)
-        end
-        Vertices = unique(labelCanonical(vertex) for vertex in Vertices)
+        Vertices = unique(labelCanonical(pushfirst!(vertex, 1)) for vertex in permutations(Array((2:m))))
     end
 
     DistanceDict = Dict()  
