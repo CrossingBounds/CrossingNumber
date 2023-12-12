@@ -319,8 +319,9 @@ function CsigmatauNew(m)
 
     DistanceDict = Dict()  
     Xvec=zeros(Int,m)
+    Ubound = m*m
     @time for vertex in Vertices
-        minVal = m*m 
+        minVal = Ubound 
         for shift in 0:(m-1) 
             vertexTemp = circshift(vertex,shift)
             for j=1:m 
@@ -344,25 +345,16 @@ function IntersectionNumber(xVector)
     m=size(xVector,1);
     Ival=0;
     for i=1:m, j=i+1:m 
-        Ival+=abs(cVal(xVector,i,j))
+        r=i-j;
+        s=(i+xVector[i])-(j+xVector[j])
+        if r <=s ## number of integers in [r,s] divisible by m
+            Ival+=floor(Int,s/m)-ceil(Int,r/m) +1
+        else #number of integers in [s,r] divisible by m
+            Ival+= floor(Int,r/m)-ceil(Int,s/m)+1
+        end
     end
     return Ival; 
 end
-
-function cVal(xVector,i,j)
-    r=i-j;
-    m=size(xVector,1)
-    s=(i+xVector[i])-(j+xVector[j])
-    val=0;
-    if r <=s ## number of integers in [r,s] divisible by m
-        val= floor(Int,s/m)-ceil(Int,r/m) +1
-    else #- number of integers in [s,r] divisible by m
-        val= -(floor(Int,r/m)-ceil(Int,s/m)+1)
-    end 
-    return val; 
-end
-
-
 
 #@time  d=Csigmatau(6)
 
