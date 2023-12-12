@@ -302,6 +302,68 @@ function CsigmatauOld(m)
 end
 
 
+
+
+# attempt at faster implementation via the paper "Finding minimum-length generator sequences" by Mark R. Jerrum (Theoretical Computer Science 36 (1985))
+# reference was suggested by Frank de Meijer 
+function CsigmatauNew(m)
+    Sigmavec = Array((1:m))
+
+    @time begin
+        Vertices = collect(permutations(Array((2:m))))
+        for vertex in Vertices
+            pushfirst!(vertex, 1)
+        end
+        Vertices = unique(labelCanonical(vertex) for vertex in Vertices)
+    end
+
+    DistanceDict = Dict()  
+    Xvec=zeros(Int,m)
+    @time for vertex in Vertices
+        minVal = m*m 
+        for shift in 0:(m-1) 
+            vertexTemp = circshift(vertex,shift)
+            for j=1:m 
+                Xvec[j]=vertexTemp[j]-j
+            end 
+            while maximum(Xvec)-minimum(Xvec)>m 
+                i=argmax(Xvec); j=argmin(Xvec); 
+                Xvec[i] -= m;
+                Xvec[j] += m; 
+            end
+            toCompare = IntersectionNumber(Xvec)
+            toCompare < minVal ? minVal=toCompare : 0;
+        end
+        DistanceDict[vertex]=minVal 
+    end
+    return DistanceDict
+end
+
+
+function IntersectionNumber(xVector)
+    m=size(xVector,1);
+    Ival=0;
+    for i=1:m, j=i+1:m 
+        Ival+=abs(cVal(xVector,i,j))
+    end
+    return Ival; 
+end
+
+function cVal(xVector,i,j)
+    r=i-j;
+    m=size(xVector,1)
+    s=(i+xVector[i])-(j+xVector[j])
+    val=0;
+    if r <=s ## number of integers in [r,s] divisible by m
+        val= floor(Int,s/m)-ceil(Int,r/m) +1
+    else #- number of integers in [s,r] divisible by m
+        val= -(floor(Int,r/m)-ceil(Int,s/m)+1)
+    end 
+    return val; 
+end
+
+
+
 #@time  d=Csigmatau(6)
 
 #save("Crossing6.jld2", "CR6", d)
