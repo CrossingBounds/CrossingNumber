@@ -308,9 +308,7 @@ end
 # reference was suggested by Frank de Meijer 
 function CsigmatauNew(m)
 
-    @time begin
-        Vertices = unique(labelCanonical(pushfirst!(vertex, 1)) for vertex in permutations(Array((2:m))))
-    end
+    @time Vertices = unique(labelCanonical(pushfirst!(vertex, 1)) for vertex in permutations(Array((2:m))))
 
     DistanceDict = Dict()  
     Xvec=zeros(Int,m)
