@@ -302,9 +302,7 @@ function CsigmatauOld(m)
 end
 
 
-
-
-# attempt at faster implementation via the paper "Finding minimum-length generator sequences" by Mark R. Jerrum (Theoretical Computer Science 36 (1985))
+# faster implementation via the paper "Finding minimum-length generator sequences" by Mark R. Jerrum (Theoretical Computer Science 36 (1985))
 # reference was suggested by Frank de Meijer 
 function CsigmatauNew(m)
     DistanceDict = Dict()  
@@ -317,35 +315,28 @@ function CsigmatauNew(m)
         for shift in 0:(m-1) 
             vertexTemp = circshift(vertex,shift)
             for j=1:m 
-                Xvec[j]=vertexTemp[j]-j
+                Xvec[j] = vertexTemp[j] - j
             end 
             while maximum(Xvec)-minimum(Xvec)>m 
                 i=argmax(Xvec); j=argmin(Xvec); 
                 Xvec[i] -= m;
                 Xvec[j] += m; 
             end
-            toCompare = IntersectionNumber(Xvec)
-            toCompare < minVal ? minVal = toCompare : 0;
+            IntersectionNumber = 0 
+            for ii=1:m, jj=ii+1:m 
+                r=ii-jj;
+                s=(ii+Xvec[ii]) - (jj+Xvec[jj])
+                if r <=s # number of integers in [r,s] divisible by m
+                    IntersectionNumber += floor(Int,s/m) - ceil(Int,r/m) + 1
+                else # number of integers in [s,r] divisible by m
+                    IntersectionNumber += floor(Int,r/m) - ceil(Int,s/m) + 1
+                end
+            end
+            IntersectionNumber < minVal ? minVal = IntersectionNumber : 0;
         end
         DistanceDict[vertex] = minVal 
     end
     return DistanceDict
-end
-
-
-function IntersectionNumber(xVector)
-    m=size(xVector,1);
-    Ival=0;
-    for i=1:m, j=i+1:m 
-        r=i-j;
-        s=(i+xVector[i]) - (j+xVector[j])
-        if r <=s ## number of integers in [r,s] divisible by m
-            Ival+= floor(Int,s/m) - ceil(Int,r/m) +1
-        else #number of integers in [s,r] divisible by m
-            Ival+= floor(Int,r/m) - ceil(Int,s/m)+1
-        end
-    end
-    return Ival; 
 end
 
 #@time  d=Csigmatau(6)
